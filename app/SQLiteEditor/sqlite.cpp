@@ -48,18 +48,21 @@ void SQLite::createThread(QUrl databasePath)
     qDebug() << __PRETTY_FUNCTION__;
     if(databasePath.isEmpty()) return;
 
+    m_query = "";
     if(m_dbThread && m_dbThread->isRunning())
     {
-        dbThreadStarted();
+        qDebug() << "m_dbThread && m_dbThread->isRunning()";
+        m_dbThread->quit();
+        m_dbThread->wait();
+        delete m_dbThread;
+        qDebug() << "m_dbThread delete";
     }
-    else
-    {
-        m_dbThread = new DbThread(this, databasePath.toString(QUrl::PreferLocalFile));
-        connect( m_dbThread, SIGNAL( results( const QList<QSqlRecord>& ) ),
-                 this, SLOT( slotResults( const QList<QSqlRecord>& ) ) );
-        connect( m_dbThread, SIGNAL(ready(bool)), this, SLOT(OndbThreadRead(bool)));
-        m_dbThread->start();
-    }
+
+    m_dbThread = new DbThread(this, databasePath.toString(QUrl::PreferLocalFile));
+    connect( m_dbThread, SIGNAL( results( const QList<QSqlRecord>& ) ),
+             this, SLOT( slotResults( const QList<QSqlRecord>& ) ) );
+    connect( m_dbThread, SIGNAL(ready(bool)), this, SLOT(OndbThreadReady(bool)));
+    m_dbThread->start();
 }
 
 void SQLite::executeQuery(QString queryStatement)
@@ -96,7 +99,7 @@ void SQLite::slotResults(const QList<QSqlRecord> &result)
     setStatus(Ready);
 }
 
-void SQLite::OndbThreadRead(bool b)
+void SQLite::OndbThreadReady(bool b)
 {
     qDebug() << __PRETTY_FUNCTION__ << b;
     if(b){
@@ -107,15 +110,8 @@ void SQLite::OndbThreadRead(bool b)
 void SQLite::dbThreadStarted()
 {
     qDebug() << __PRETTY_FUNCTION__;
+    connect(this, SIGNAL(queryChanged(QString)),
+            this, SLOT(executeQuery(QString)));
     databaseOpened();
-    if(!m_query.isEmpty())
-    {
-        this->executeQuery(m_query);
-    }
-    else
-    {
-        connect(this, SIGNAL(queryChanged(QString)),
-                this, SLOT(executeQuery(QString)));
-    }
 }
 

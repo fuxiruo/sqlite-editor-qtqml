@@ -86,7 +86,7 @@ signals:
 private slots:
     void createThread(QUrl);
     void slotResults( const QList<QSqlRecord>& );
-    void OndbThreadRead(bool b);
+    void OndbThreadReady(bool b);
     void dbThreadStarted();
 
 public slots:
