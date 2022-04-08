@@ -30,9 +30,17 @@ SQLite::SQLite(QObject *parent) :
     //    qRegisterMetaType< QList<QSqlRecord> >( "QList<QSqlRecord>" );
 
     qDebug() << __PRETTY_FUNCTION__;
-
+    setStatus(Ready);
     connect(this, SIGNAL(databasePathChanged(QUrl)),
             this, SLOT(createThread(QUrl)));
+}
+
+SQLite::~SQLite()
+{
+    if(m_dbThread){
+        m_dbThread->quit();
+        m_dbThread->wait();
+    }
 }
 
 void SQLite::createThread(QUrl databasePath)
@@ -46,10 +54,10 @@ void SQLite::createThread(QUrl databasePath)
     }
     else
     {
-        m_dbThread = new DbThread(this, databasePath.toString(QUrl::RemoveScheme));
+        m_dbThread = new DbThread(this, databasePath.toString(QUrl::PreferLocalFile));
         connect( m_dbThread, SIGNAL( results( const QList<QSqlRecord>& ) ),
                  this, SLOT( slotResults( const QList<QSqlRecord>& ) ) );
-        connect( m_dbThread, SIGNAL(started()), this, SLOT(dbThreadStarted()));
+        connect( m_dbThread, SIGNAL(ready(bool)), this, SLOT(OndbThreadRead(bool)));
         m_dbThread->start();
     }
 }
@@ -86,6 +94,14 @@ void SQLite::slotResults(const QList<QSqlRecord> &result)
     qDebug() << "count of list=" << val.count();
     resultsReady(val, m_query);
     setStatus(Ready);
+}
+
+void SQLite::OndbThreadRead(bool b)
+{
+    qDebug() << __PRETTY_FUNCTION__ << b;
+    if(b){
+        dbThreadStarted();
+    }
 }
 
 void SQLite::dbThreadStarted()
